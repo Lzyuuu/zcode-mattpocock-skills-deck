@@ -1,0 +1,7 @@
+{
+  "name": "scratch-deck",
+  "version": "0.1.1",
+  "description": "MattSkills 任务板移植：输入框上方状态行 + 上弹面板，读取工作区 .scratch/ 卡片（本地 Markdown 模式）。动作注入 /wayfinder、/to-tickets 等 prompt，并把归档/评论/交接落盘为真实文件与事件记录。含 app.asar 注入工具（install-overlay / uninstall-overlay）与稳定 runtime 自愈。",
+  "author": { "name": "lzy" },
+  "commands": "commands"
+}
