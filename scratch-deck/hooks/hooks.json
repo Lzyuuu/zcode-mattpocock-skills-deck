@@ -1,0 +1,19 @@
+{
+  "description": "scratch-deck: 会话启动时同步稳定 runtime，并只读检查 app.asar 注入是否仍然有效。默认只报告、不修改客户端；SCRATCH_DECK_AUTO_INSTALL=1 时才自动 install。/uninstall-overlay 会写 opt-out 标记，之后不再提示也不再自动重装。",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "shell": true,
+            "command": "python3 \"${ZCODE_PLUGIN_ROOT}/hooks/session-start.py\" || python \"${ZCODE_PLUGIN_ROOT}/hooks/session-start.py\" || py -3 \"${ZCODE_PLUGIN_ROOT}/hooks/session-start.py\"",
+            "timeoutMs": 20000,
+            "statusMessage": "scratch-deck: 检查 runtime 与注入状态…"
+          }
+        ]
+      }
+    ]
+  }
+}

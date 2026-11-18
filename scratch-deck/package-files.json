@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "comment": "随包文件清单：runtime 同步、分发同步、一致性测试都读这一份，避免两套 glob 各写各的。",
+  "dirs": [
+    "src",
+    "prompts",
+    "scripts",
+    "docs",
+    "test",
+    "commands",
+    "hooks",
+    "demo-workspace",
+    "prototype",
+    ".zcode-plugin"
+  ],
+  "files": [
+    "README.md",
+    "package-files.json"
+  ],
+  "excludeNames": [".DS_Store", "node_modules", ".mimosa", "__pycache__", ".git"],
+  "excludeSuffix": [".pyc", ".tmp", ".log", ".swp"],
+  "distribution": {
+    "mirror": "~/.zcode/cli/plugins/marketplaces/dev-scratch-deck",
+    "cache": "~/.zcode/cli/plugins/cache/dev-scratch-deck/scratch-deck",
+    "registry": "~/.zcode/cli/plugins/installed_plugins.json",
+    "runtime": "~/.zcode/scratch-deck"
+  }
+}
