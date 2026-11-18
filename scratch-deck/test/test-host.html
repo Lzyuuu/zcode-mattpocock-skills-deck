@@ -1,0 +1,214 @@
+<!doctype html>
+<!-- Scratch Deck overlay 测试宿主：仿 ZCode 外壳（主/辅 composer + 对话区）。
+     file:// 直开；唯一外部引用是同仓 ../src/deck-prompts.js 与 ../src/deck-overlay.js。
+     顶部场景条可切换三态 / 双 composer / 设置页覆盖 / composer 移除，用来手工复核
+     与 test/test-overlay.cjs 同构的场景。自动化断言在 test-overlay.cjs，这里管看起来对不对。 -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scratch Deck · test host</title>
+<style>
+:root{--bg:#0f1115;--surface:#16181d;--surface-2:#1b1f26;--surface-3:#22262e;--border:#2a2d35;
+  --fg:#e8e8ec;--muted:#a1a1aa;--muted-2:#8b8b95;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--fg);font-size:13px;line-height:1.5;overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+.zwin{position:fixed;inset:0;display:flex;flex-direction:column}
+.ztitle{height:38px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;
+  border-bottom:1px solid var(--border);background:var(--surface);font-size:12px;color:var(--muted)}
+.ztitle .dots{display:flex;gap:7px}
+.ztitle .dots i{width:11px;height:11px;border-radius:50%;background:#3a3f49}
+.ztitle .path{margin-left:6px;color:var(--muted-2)}
+.scenarios{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.scenarios button{font-size:10.5px;color:var(--muted);border:1px solid var(--border);border-radius:99px;padding:2px 9px;min-height:22px}
+.scenarios button:hover{color:var(--fg);border-color:#3a4150}
+.scenarios button.on{background:var(--surface-3);color:var(--fg)}
+.zbody{flex:1;display:flex;min-height:0}
+.zrail{width:212px;flex:none;border-right:1px solid var(--border);background:var(--surface);padding:10px 8px}
+.zrail .rail-h{font-size:11px;color:var(--muted-2);letter-spacing:.06em;padding:6px 10px 4px;text-transform:uppercase}
+.zrail .sess{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;color:var(--muted);font-size:12px;min-height:32px}
+.zrail .sess.on{background:var(--surface-3);color:var(--fg)}
+.zpanes{flex:1;display:flex;min-width:0}
+.zmain{flex:1;position:relative;display:flex;flex-direction:column;min-width:0}
+.zside{width:360px;flex:none;border-left:1px solid var(--border);display:none;flex-direction:column}
+.zside.on{display:flex}
+.zchat{flex:1;overflow:auto;padding:26px 8% 18px;display:flex;flex-direction:column;gap:18px}
+.msg{max-width:72%;padding:10px 14px;border-radius:10px;font-size:15px;line-height:1.6}
+.msg.u{align-self:flex-end;background:#2b3245;color:#e8eaf2;border-bottom-right-radius:3px}
+.msg.a{align-self:flex-start;background:var(--surface-2);border:1px solid var(--border);border-bottom-left-radius:3px;color:var(--muted)}
+.zdock{flex:none;padding:0 8% 14px;display:flex;flex-direction:column;gap:8px}
+.composer{display:flex;align-items:flex-end;gap:10px;background:var(--surface-2);
+  border:1px solid var(--border);border-radius:12px;padding:10px 12px;transition:border-color .2s,box-shadow .2s}
+.composer.filled{border-color:#58a6ff;box-shadow:0 0 0 3px rgba(88,166,255,.14)}
+.composer textarea{flex:1;background:none;border:none;resize:none;color:var(--fg);
+  font:inherit;font-size:15px;line-height:1.5;max-height:96px;outline:none}
+.composer textarea::placeholder{color:var(--muted-2)}
+.composer .send{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--surface-3);color:var(--muted);flex:none}
+.composer .send:hover{background:#2c313a;color:var(--fg)}
+.zfoot{display:flex;justify-content:space-between;font-size:11px;color:var(--muted-2);padding:0 2px}
+body.settings-mode .zmain,body.settings-mode .zrail{visibility:hidden}
+.settings-shield{position:fixed;inset:38px 0 0 0;display:none;background:var(--bg);z-index:5;
+  align-items:center;justify-content:center;color:var(--muted);font-size:14px}
+body.settings-mode .settings-shield{display:flex}
+@media (max-width:900px){.zrail{display:none}.zchat,.zdock{padding-left:16px;padding-right:16px}}
+</style>
+</head>
+<body>
+
+<div class="zwin">
+  <div class="ztitle">
+    <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span>ZCode</span><span class="path">test host · scratch-deck</span>
+    <div class="scenarios" id="scenarios" aria-label="场景切换">
+      <button data-sc="ready" class="on">ready</button>
+      <button data-sc="uninit">无 .scratch</button>
+      <button data-sc="unresolved">无工作区</button>
+      <button data-sc="dual">双 composer</button>
+      <button data-sc="settings">设置页覆盖</button>
+      <button data-sc="nocomposer">移除 composer</button>
+    </div>
+  </div>
+  <div class="zbody">
+    <nav class="zrail" aria-label="会话列表">
+      <div class="rail-h">会话</div>
+      <div class="sess on"><span>scratch-deck 联调</span></div>
+      <div class="sess"><span>登录超时排查</span></div>
+    </nav>
+    <div class="zpanes">
+      <main class="zmain" data-pane-id="main" data-session-id="sess-demo">
+        <div class="zchat" aria-label="对话记录（演示内容）">
+          <div class="msg u">帮我把 .scratch 里的卡片过一遍，先处理可接的</div>
+          <div class="msg a">读完了 10 张卡片：1 张可接、1 张被阻塞、1 张待分诊。<br>建议先接「清理废弃 API」，它没有依赖。</div>
+        </div>
+        <div class="zdock">
+          <div class="composer" id="composer">
+            <textarea id="composer-ta" rows="1" placeholder="给 ZCode 说点什么…（试试点面板上的按钮）" aria-label="输入框"></textarea>
+            <button class="send" aria-label="发送">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12 20 4l-4 8 4 8z"/></svg>
+            </button>
+          </div>
+          <div class="zfoot"><span>scratch-deck test host · 演示 state</span><span>⌘↩ 发送</span></div>
+        </div>
+      </main>
+      <aside class="zside" data-pane-id="side" data-testid="selection-side-chat" aria-label="辅助对话">
+        <div class="zchat">
+          <div class="msg a">辅助对话：这里也有一个 composer，主 pane 在场时状态行不该跟过来。</div>
+        </div>
+        <div class="zdock">
+          <div class="composer">
+            <textarea id="side-ta" rows="1" placeholder="辅助对话输入框" aria-label="辅助输入框"></textarea>
+            <button class="send" aria-label="发送">→</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+<div class="settings-shield">设置页覆盖中（宿主页面切换）</div>
+
+<script src="../src/deck-prompts.js"></script>
+<script src="../src/deck-overlay.js"></script>
+<script>
+'use strict';
+/* 演示 DeckState：与 demo-workspace/.scratch 的 --once 输出同构（writing 为静态演示值） */
+var DEMO_STATE = {
+  schema: 2,
+  root: '/demo-workspace',
+  rootSource: 'demo',
+  status: 'ready',
+  diagnosis: null,
+  version: '0.1.1',
+  checks: null, git: null, tracker: null,
+  notices: [],
+  cards: [
+    {id:401,type:'map',title:'登录稳定性路线',status:'open',labels:['wayfinder:map'],blockedBy:null,children:[403,404,405,410],author:'me',updated:'2026-11-17',next:null,writing:false,path:'.scratch/401-登录稳定性路线.md',comments:[]},
+    {id:402,type:'spec',title:'评论流防抖规格',status:'open',labels:[],blockedBy:null,children:[],author:'me',updated:'2026-11-16',next:'重试退避策略待定',writing:false,path:'.scratch/402-评论流防抖规格.md',comments:[{who:'rx',at:'11-16',tx:'重试退避用指数还是固定？'}]},
+    {id:403,type:'ticket',title:'修复登录空指针',status:'closed',labels:['bug'],blockedBy:null,children:[],author:'me',updated:'2026-11-14',next:null,writing:false,path:'.scratch/403-修复登录空指针.md',comments:[]},
+    {id:404,type:'ticket',title:'PR #77 评审：导出模块重构',status:'open',labels:['needs-triage'],blockedBy:null,children:[],author:'qb',updated:'2026-11-16',next:'先过 diff 再分诊',writing:false,path:'.scratch/404-PR77评审导出模块重构.md',comments:[{who:'qb',at:'11-16',tx:'重构了导出管线，请帮看兼容性。'},{who:'me',at:'11-16',tx:'收到，先过一遍 diff 再分诊。'}]},
+    {id:405,type:'ticket',title:'清理废弃 API（v1 兼容层）',status:'frontier',labels:[],blockedBy:null,children:[],author:'me',updated:'2026-11-17',next:'无依赖，可直接开工',writing:false,path:'.scratch/405-清理废弃API.md',comments:[]},
+    {id:406,type:'map',title:'性能基线地图',status:'open',labels:['wayfinder:map'],blockedBy:null,children:[407,409],author:'me',updated:'2026-11-12',next:null,writing:false,path:'.scratch/406-性能基线地图.md',comments:[]},
+    {id:407,type:'ticket',title:'基准脚本接入 CI',status:'closed',labels:[],blockedBy:null,children:[],author:'me',updated:'2026-11-12',next:null,writing:false,path:'.scratch/407-基准脚本接入CI.md',comments:[]},
+    {id:408,type:'ticket',title:'限流中间件选型',status:'blocked',labels:[],blockedBy:401,children:[],author:'rx',updated:'2026-11-15',next:'等地图 #401 定配额',writing:false,path:'.scratch/408-限流中间件选型.md',comments:[]},
+    {id:409,type:'ticket',title:'火焰图采样修正',status:'closed',labels:[],blockedBy:null,children:[],author:'me',updated:'2026-11-10',next:null,writing:false,path:'.scratch/409-火焰图采样修正.md',comments:[]},
+    {id:410,type:'ticket',title:'登录超时埋点补齐',status:'open',labels:['bug'],blockedBy:null,children:[],author:'me',updated:'2026-11-17',next:'补齐三个关键埋点位',writing:true,path:'.scratch/410-登录超时埋点补齐.md',comments:[]}
+  ],
+  counts:{takeable:1,occupied:3,bug:1,triage:1,blocked:1,closed:3},
+  updatedAt:Date.now()
+};
+
+function withCounts(s) {
+  var c = {takeable:0,occupied:0,bug:0,triage:0,blocked:0,closed:0};
+  s.cards.forEach(function (card) {
+    if (card.status === 'closed') { c.closed++; return; }
+    if (card.status === 'frontier') c.takeable++;
+    if (card.type === 'ticket' && card.status !== 'frontier') c.occupied++;
+    if (card.labels.indexOf('bug') >= 0) c.bug++;
+    if (card.labels.indexOf('needs-triage') >= 0) c.triage++;
+    if (card.blockedBy !== null) c.blocked++;
+  });
+  s.counts = c;
+  return s;
+}
+function emptyState(status, diagnosis, root) {
+  return {
+    schema: 2, root: root || null, rootSource: 'window', status: status, diagnosis: diagnosis,
+    cards: [], counts: {takeable:0,occupied:0,bug:0,triage:0,blocked:0,closed:0},
+    parseErrors: [], updatedAt: Date.now(), notices: [], version: '0.1.1',
+    checks: null, git: null, tracker: null
+  };
+}
+
+var scenarios = {
+  ready: function () {
+    document.body.classList.remove('settings-mode');
+    document.querySelector('.zside').classList.remove('on');
+    document.getElementById('composer').style.display = '';
+    return withCounts(Object.assign({}, DEMO_STATE, { status: 'ready', root: '/demo-workspace', diagnosis: null, updatedAt: Date.now() }));
+  },
+  uninit: function () {
+    document.body.classList.remove('settings-mode');
+    document.querySelector('.zside').classList.remove('on');
+    document.getElementById('composer').style.display = '';
+    return emptyState('uninitialized', { code: 'no-scratch', message: '这个工作区还没有 .scratch/ 目录' }, '/demo-workspace');
+  },
+  unresolved: function () {
+    document.body.classList.remove('settings-mode');
+    document.querySelector('.zside').classList.remove('on');
+    document.getElementById('composer').style.display = '';
+    return emptyState('unresolved', { code: 'root-missing', message: '工作区路径不存在或不可读：/gone/project' }, null);
+  },
+  dual: function () {
+    document.body.classList.remove('settings-mode');
+    document.querySelector('.zside').classList.add('on');
+    document.getElementById('composer').style.display = '';
+    return scenarios.ready();
+  },
+  settings: function () {
+    document.body.classList.add('settings-mode');
+    return scenarios.ready();
+  },
+  nocomposer: function () {
+    document.body.classList.remove('settings-mode');
+    document.querySelector('.zside').classList.remove('on');
+    document.getElementById('composer').style.display = 'none';
+    return scenarios.ready();
+  }
+};
+
+document.getElementById('scenarios').addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-sc]');
+  if (!b) return;
+  document.querySelectorAll('#scenarios button').forEach(function (x) { x.classList.toggle('on', x === b); });
+  window.__deckUpdate(scenarios[b.dataset.sc]());
+});
+
+window.__deckUpdate(scenarios.ready());
+document.getElementById('composer-ta').addEventListener('input', function (e) {
+  e.target.parentElement.classList.toggle('filled', !!e.target.value);
+});
+</script>
+</body>
+</html>

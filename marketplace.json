@@ -1,0 +1,15 @@
+{
+  "name": "dev-scratch-deck",
+  "plugins": [
+    {
+      "name": "scratch-deck",
+      "source": "./scratch-deck",
+      "version": "0.1.1",
+      "description": "MattSkills 任务板移植：状态行 + 上弹面板，读取 .scratch/ 卡片，动作注入 /wayfinder 等 prompt",
+      "displayName": "Scratch Deck",
+      "displayName_i18n": { "zh-CN": "Scratch Deck 任务板" },
+      "description_i18n": { "zh-CN": "MattSkills 任务板移植：输入框上方状态行 + 上弹面板，读取工作区 .scratch/ 卡片；动作按钮向输入框注入 /wayfinder、/to-tickets 等命令，归档/评论/交接写回真实文件并记事件。含 app.asar 注入工具与稳定 runtime 自愈。" },
+      "category": "developer-tools"
+    }
+  ]
+}
